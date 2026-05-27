@@ -1,0 +1,88 @@
+package com.hauesoftware.traffic.source;
+
+import com.hauesoftware.traffic.config.CityConfig;
+import com.hauesoftware.traffic.config.CityConfig.Checkpoint;
+import com.hauesoftware.traffic.model.TrafficRecord;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+
+import java.util.Random;
+
+/**
+ * 数据构造器 — 模拟城市交通卡口的实时通行数据
+ * 每秒随机生成 1~5 条通行记录
+ */
+public class TrafficDataGenerator implements SourceFunction<TrafficRecord> {
+
+    private volatile boolean running = true;
+    private final Random random = new Random();
+
+    private static final String[] VEHICLE_TYPES = {"small_car", "van", "bus", "motorcycle"};
+    // 权重: small_car 60%, van 15%, bus 10%, motorcycle 15%
+    private static final int[] TYPE_WEIGHTS = {60, 15, 10, 15};
+    private static final int TYPE_WEIGHT_SUM;
+    static {
+        int sum = 0;
+        for (int w : TYPE_WEIGHTS) sum += w;
+        TYPE_WEIGHT_SUM = sum;
+    }
+
+    private static final char[] LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ".toCharArray();
+
+    @Override
+    public void run(SourceContext<TrafficRecord> ctx) throws Exception {
+        while (running) {
+            TrafficRecord record = generateRecord();
+            ctx.collect(record);
+
+            // 随机间隔 200~800ms，平均每秒约 2~5 条
+            int delay = 200 + random.nextInt(600);
+            Thread.sleep(delay);
+        }
+    }
+
+    @Override
+    public void cancel() {
+        running = false;
+    }
+
+    private TrafficRecord generateRecord() {
+        Checkpoint cp = CityConfig.CHECKPOINTS.get(random.nextInt(CityConfig.CHECKPOINTS.size()));
+        String vehicleType = randomType();
+
+        double maxSpeed;
+        switch (vehicleType) {
+            case "van": maxSpeed = 60; break;
+            case "bus":         maxSpeed = 50; break;
+            default:            maxSpeed = 80;
+        }
+
+        return new TrafficRecord(
+                randomPlate(),
+                vehicleType,
+                cp.id,
+                cp.name,
+                cp.longitude,
+                cp.latitude,
+                cp.district,
+                System.currentTimeMillis(),
+                Math.round(random.nextDouble() * maxSpeed * 10.0) / 10.0,
+                1 + random.nextInt(4)
+        );
+    }
+
+    private String randomPlate() {
+        char letter = LETTERS[random.nextInt(LETTERS.length)];
+        int digits = 10000 + random.nextInt(90000);
+        return "豫A·" + letter + digits;
+    }
+
+    private String randomType() {
+        int r = random.nextInt(TYPE_WEIGHT_SUM);
+        int cumulative = 0;
+        for (int i = 0; i < VEHICLE_TYPES.length; i++) {
+            cumulative += TYPE_WEIGHTS[i];
+            if (r < cumulative) return VEHICLE_TYPES[i];
+        }
+        return VEHICLE_TYPES[0];
+    }
+}
