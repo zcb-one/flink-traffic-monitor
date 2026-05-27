@@ -1,7 +1,6 @@
 package com.hauesoftware.traffic;
 
-import com.hauesoftware.traffic.analysis.TrafficFlowAnalysis;
-import com.hauesoftware.traffic.analysis.VehicleDistributionAnalysis;
+import com.hauesoftware.traffic.analysis.CombinedAnalysis;
 import com.hauesoftware.traffic.model.TrafficRecord;
 import com.hauesoftware.traffic.source.TrafficDataGenerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -21,21 +20,20 @@ public class Main {
         DataStream<TrafficRecord> trafficStream = env.addSource(new TrafficDataGenerator())
                 .name("Traffic-Data-Generator");
 
-        // 原始数据抽样输出（每 5 条输出 1 条，避免刷屏）
-        trafficStream.filter(r -> r.hashCode() % 5 == 0)
-                .map(r -> "[原始数据] " + r.toString())
-                .print();
+        // 原始数据抽样输出到 stderr（每 3 条输出 1 条，简洁格式）
+        trafficStream.filter(r -> Math.abs(r.hashCode()) % 3 == 0)
+                .map(r -> String.format("[数据] %s %s %s %.1fkm/h",
+                        r.getCheckpointId(), r.getVehicleType(),
+                        r.getVehicleId(), r.getSpeed()))
+                .printToErr();
 
-        // 车流量分析
-        TrafficFlowAnalysis.analyze(trafficStream);
-
-        // 车辆分布分析
-        VehicleDistributionAnalysis.analyze(trafficStream);
+        // 统一分析（15秒窗口，格式化报表输出到 stdout）
+        CombinedAnalysis.analyze(trafficStream);
 
         System.out.println("========================================");
         System.out.println("  城市交通实时监控平台启动中...");
-        System.out.println("  虚拟数据源: 郑州市 5个卡口, 每秒1~5条");
-        System.out.println("  分析窗口: 30秒滚动窗口");
+        System.out.println("  虚拟数据源: 郑州市 10个卡口");
+        System.out.println("  分析窗口: 15秒滚动窗口");
         System.out.println("========================================");
 
         env.execute("TrafficStatusAnalysing");

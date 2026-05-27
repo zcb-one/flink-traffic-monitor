@@ -49,12 +49,15 @@ public class TrafficDataGenerator implements SourceFunction<TrafficRecord> {
         Checkpoint cp = CityConfig.CHECKPOINTS.get(random.nextInt(CityConfig.CHECKPOINTS.size()));
         String vehicleType = randomType();
 
-        double maxSpeed;
+        // 车型限速上限
+        double typeMax;
         switch (vehicleType) {
-            case "van": maxSpeed = 60; break;
-            case "bus":         maxSpeed = 50; break;
-            default:            maxSpeed = 80;
+            case "van": typeMax = 60; break;
+            case "bus": typeMax = 50; break;
+            default:    typeMax = 120;
         }
+
+        double speed = randomSpeed(cp.speedLimit, typeMax);
 
         return new TrafficRecord(
                 randomPlate(),
@@ -65,9 +68,31 @@ public class TrafficDataGenerator implements SourceFunction<TrafficRecord> {
                 cp.latitude,
                 cp.district,
                 System.currentTimeMillis(),
-                Math.round(random.nextDouble() * maxSpeed * 10.0) / 10.0,
+                speed,
                 1 + random.nextInt(4)
         );
+    }
+
+    /**
+     * 电子眼测速模型：85%正常、10%轻微超速、5%严重超速，受车型上限约束
+     */
+    private double randomSpeed(int limit, double typeMax) {
+        double effectiveLimit = Math.min(limit, typeMax);
+        double factor;
+        double r = random.nextDouble() * 100;
+
+        if (r < 85) {
+            // 正常行驶: 30%~100% 限速
+            factor = 0.3 + random.nextDouble() * 0.7;
+        } else if (r < 95) {
+            // 轻微超速: 100%~120% 限速
+            factor = 1.0 + random.nextDouble() * 0.2;
+        } else {
+            // 严重超速: 120%~150% 限速
+            factor = 1.2 + random.nextDouble() * 0.3;
+        }
+
+        return Math.round(effectiveLimit * factor * 10.0) / 10.0;
     }
 
     private String randomPlate() {
