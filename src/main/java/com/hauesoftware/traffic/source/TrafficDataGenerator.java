@@ -16,8 +16,8 @@ public class TrafficDataGenerator implements SourceFunction<TrafficRecord> {
     private volatile boolean running = true;
     private final Random random = new Random();
 
-    private static final String[] VEHICLE_TYPES = {"small_car", "van", "bus", "motorcycle"};
-    // 权重: small_car 60%, van 15%, bus 10%, motorcycle 15%
+    private static final String[] VEHICLE_TYPES = {"小轿车", "面包车", "公交车", "摩托车"};
+    // 权重: 小轿车 60%, 面包车 15%, 公交车 10%, 摩托车 15%
     private static final int[] TYPE_WEIGHTS = {60, 15, 10, 15};
     private static final int TYPE_WEIGHT_SUM;
     static {

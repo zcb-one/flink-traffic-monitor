@@ -24,7 +24,7 @@ public class CombinedAnalysis {
         stream.windowAll(TumblingProcessingTimeWindows.of(Time.seconds(15)))
                 .process(new ReportFunction())
                 .print();
-    }
+}
 
     private static class ReportFunction
             extends ProcessAllWindowFunction<TrafficRecord, String, TimeWindow> {
@@ -85,6 +85,22 @@ public class CombinedAnalysis {
                 sb.append(String.format("  %-6s : %4d (%2.0f%%)\n",
                         entry.getKey(), entry.getValue(),
                         100.0 * entry.getValue() / total));
+            }
+
+            // 五、车流量预警（阈值：单卡口15秒内超过8辆则告警）
+            boolean hasWarning = false;
+            StringBuilder warnings = new StringBuilder();
+            for (var entry : checkpointCounts.entrySet()) {
+                if (entry.getValue() > 8) {
+                    String name = checkpointNames.getOrDefault(entry.getKey(), "");
+                    warnings.append(String.format("  [预警] %s %s 车流量: %d 辆（超过阈值 8 辆）\n",
+                            entry.getKey(), name, entry.getValue()));
+                    hasWarning = true;
+                }
+            }
+            if (hasWarning) {
+                sb.append("五、车流量预警\n");
+                sb.append(warnings);
             }
 
             sb.append("==================================================================\n");

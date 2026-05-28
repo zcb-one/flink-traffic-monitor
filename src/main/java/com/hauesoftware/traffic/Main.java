@@ -8,7 +8,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * 城市交通实时监控平台 — 入口
- *
  * 启动后实时生成虚拟城市交通数据，进行车流量分析和车辆分布分析，结果输出到控制台。
  */
 public class Main {
